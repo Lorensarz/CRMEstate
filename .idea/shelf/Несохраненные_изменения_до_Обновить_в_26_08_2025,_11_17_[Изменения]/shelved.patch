@@ -1,0 +1,22 @@
+Index: .idea/.gitignore
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+># Файлы, игнорируемые по умолчанию\r\n/shelf/\r\n/workspace.xml\r\n# Environment-dependent path to Maven home directory\r\n/mavenHomeManager.xml\r\n
+===================================================================
+diff --git a/.idea/.gitignore b/.idea/.gitignore
+--- a/.idea/.gitignore	(revision f00c5b8051fdbddb0f734140066060595af0cece)
++++ b/.idea/.gitignore	(date 1756196106579)
+@@ -3,3 +3,12 @@
+ /workspace.xml
+ # Environment-dependent path to Maven home directory
+ /mavenHomeManager.xml
++# IDEA
++.idea/
++*.iml
++*.iws
++*.ipr
++out/
++
++# AMPLICODE
++amplicode.xml
+\ No newline at end of file

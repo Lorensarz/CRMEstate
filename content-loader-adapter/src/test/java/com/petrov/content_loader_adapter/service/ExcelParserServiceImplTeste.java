@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ExcelParserServiceImplTest {
 
 	@InjectMocks
-	private ExcelParserServiceImpl exelParserService;
+	private ExcelParserService exelParserService;
 
 	private Workbook workbook;
 	private Sheet sheet;

@@ -1,7 +1,6 @@
 package com.petrov.content_loader_adapter.controller;
 
 import com.petrov.content_loader_adapter.dto.EstateDataDto;
-import com.petrov.content_loader_adapter.service.ExcelParserService;
 import com.petrov.content_loader_adapter.service.KafkaProducerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -23,7 +22,7 @@ public class FileUploadController {
 	private final KafkaProducerService kafkaProducerService;
 
 	@PostMapping("/load")
-	public ResponseEntity<String> uploadFile(@RequestParam("file")MultipartFile file) {
+	public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file) {
 		if (file.isEmpty()) {
 			return ResponseEntity.badRequest().body("Please select a file to upload");
 		}
