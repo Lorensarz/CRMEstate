@@ -1,0 +1,29 @@
+*.class
+*.jar
+*.war
+*.ear
+target/
+build/
+logs/
+*.log
+
+# Maven
+**/target/
+**/pom.xml.tag
+**/pom.xml.releaseBackup
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+bin/
+
+# Docker
+docker-compose.override.yml
+
+# Environment variables
+.env
+.env.local

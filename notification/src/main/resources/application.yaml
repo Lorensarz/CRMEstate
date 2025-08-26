@@ -20,7 +20,7 @@ spring:
       group-id: estate-group
 
 server:
-  port: 8083
+  port: 8085
 
 springdoc:
   api-docs:
