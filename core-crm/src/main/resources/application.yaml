@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: core-crm
+  datasource:
+    url: jdbc:postgresql://localhost:5432/crm_db
+    username: crm_user
+    password: crm_password
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  kafka:
+    bootstrap-servers: localhost:29092
+    consumer:
+      group-id: estate-group
+server:
+  port: 8080
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html

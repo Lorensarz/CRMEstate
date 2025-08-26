@@ -1,0 +1,119 @@
+version: '3.8'
+
+services:
+  # База данных для CRM
+  postgres-crm:
+    image: postgres:15-alpine
+    container_name: postgres-crm
+    environment:
+      POSTGRES_DB: crm_db
+      POSTGRES_USER: crm_user
+      POSTGRES_PASSWORD: crm_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-crm-data:/var/lib/postgresql/data
+      - ./init/init-crm.sql:/docker-entrypoint-initdb.d/init-crm.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crm_user -d crm_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - estate-network
+
+  # База данных для истории цен
+  postgres-history:
+    image: postgres:15-alpine
+    container_name: postgres-history
+    environment:
+      POSTGRES_DB: history_db
+      POSTGRES_USER: history_user
+      POSTGRES_PASSWORD: history_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-history-data:/var/lib/postgresql/data
+      - ./init/init-history.sql:/docker-entrypoint-initdb.d/init-history.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U history_user -d history_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - estate-network
+
+  # Zookeeper для Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo stat | nc localhost 2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - estate-network
+
+  # Kafka
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "kafka:9092", "--list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - estate-network
+
+  # Сервис для создания топиков Kafka
+  kafka-setup:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka-setup
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command: >
+      bash -c "
+      echo 'Waiting for Kafka to be ready...';
+      sleep 10;
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic raw-estate-data --partitions 3 --replication-factor 1;
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic notifications --partitions 3 --replication-factor 1;
+      echo 'Topics created successfully';
+      kafka-topics --bootstrap-server kafka:9092 --list;
+      exit 0;
+      "
+    networks:
+      - estate-network
+
+volumes:
+  postgres-crm-data:
+  postgres-history-data:
+  kafka-data:
+
+networks:
+  estate-network:
+    driver: bridge

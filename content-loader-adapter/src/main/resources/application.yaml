@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: content-loader-adapter
+  datasource:
+    url: jdbc:postgresql://localhost:5432/user_db
+    username: postgres
+    password: password
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  kafka:
+    bootstrap-servers: localhost:29092
+    producer:
+      batch-size: 16384
+      linger-ms: 100
+      compression-type: snappy
+      acks: all
+      retries: 3
+      topic: raw-estate-data
+    consumer:
+      group-id: estate-group
+
+
+server:
+  port: 8082
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
