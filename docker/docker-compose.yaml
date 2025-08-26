@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # База данных для CRM
   postgres-crm:
@@ -53,12 +51,14 @@ services:
     ports:
       - "2181:2181"
     healthcheck:
-      test: ["CMD", "bash", "-c", "echo stat | nc localhost 2181"]
+      test: ["CMD-SHELL", "nc -z localhost 2181 || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 20s
     networks:
       - estate-network
+    restart: unless-stopped
 
   # Kafka
   kafka:
@@ -82,32 +82,34 @@ services:
     volumes:
       - kafka-data:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD", "kafka-topics", "--bootstrap-server", "kafka:9092", "--list"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
     networks:
       - estate-network
+    restart: unless-stopped
 
   # Сервис для создания топиков Kafka
-  kafka-setup:
+  kafka-init:
     image: confluentinc/cp-kafka:7.4.0
-    container_name: kafka-setup
+    container_name: kafka-init
     depends_on:
       kafka:
         condition: service_healthy
     command: >
       bash -c "
       echo 'Waiting for Kafka to be ready...';
-      sleep 10;
+      sleep 30;
       kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic raw-estate-data --partitions 3 --replication-factor 1;
       kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic notifications --partitions 3 --replication-factor 1;
-      echo 'Topics created successfully';
+      echo 'Topics created:';
       kafka-topics --bootstrap-server kafka:9092 --list;
-      exit 0;
       "
     networks:
       - estate-network
+    restart: "no"
 
 volumes:
   postgres-crm-data:
