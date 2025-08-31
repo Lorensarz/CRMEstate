@@ -1,6 +1,7 @@
 package com.petrov.content_loader_adapter.controller;
 
 import com.petrov.content_loader_adapter.dto.EstateDataDto;
+import com.petrov.content_loader_adapter.service.ExcelParserService;
 import com.petrov.content_loader_adapter.service.KafkaProducerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api")
@@ -26,7 +28,7 @@ public class FileUploadController {
 		if (file.isEmpty()) {
 			return ResponseEntity.badRequest().body("Please select a file to upload");
 		}
-		if (!file.getOriginalFilename().endsWith(".xlsx")) {
+		if (!Objects.requireNonNull(file.getOriginalFilename()).endsWith(".xlsx")) {
 			return ResponseEntity.badRequest().body("Only Exel files (\".xlsx\") are supported");
 		}
 

@@ -1,14 +1,6 @@
 spring:
   application:
     name: content-loader-adapter
-  datasource:
-    url: jdbc:postgresql://localhost:5432/user_db
-    username: postgres
-    password: password
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
   kafka:
     bootstrap-servers: localhost:29092
     producer:
@@ -18,15 +10,14 @@ spring:
       acks: all
       retries: 3
       topic: raw-estate-data
-    consumer:
-      group-id: estate-group
-
-
 server:
   port: 8081
-
 springdoc:
   api-docs:
     path: /api-docs
   swagger-ui:
     path: /swagger-ui.html
+logging:
+  level:
+    com.petrov.content-loader-adapter: DEBUG
+    org.springframework.kafka: INFO

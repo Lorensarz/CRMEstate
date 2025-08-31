@@ -8,16 +8,27 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
-
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 1000
+        order_inserts: true
+        order_updates: true
+        generate_statistics: true
+        connection:
+          provider_disables_autocommit: true
   kafka:
     bootstrap-servers: localhost:29092
+    topic: raw-estate-data
     consumer:
-      group-id: estate-group
-
+      group-id: price-history-group
+      trusted-package: com.petrov.price_history.dto
+      auto-commit: false
+      auto-offset-reset: earliest
+      max-poll-records: 500
+      fetch-max-bytes: 52428800 #50mb
 server:
   port: 8084
-
 springdoc:
   api-docs:
     path: /api-docs

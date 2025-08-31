@@ -2,33 +2,43 @@ spring:
   application:
     name: content-processor
   datasource:
-    crm:
-      url: jdbc:postgresql://localhost:5432/crm_db
-      username: crm_user
-      password: crm_password
-    history:
-      url: jdbc:postgresql://localhost:5433/history_db
-      username: history_user
-      password: history_password
+    url: jdbc:postgresql://localhost:5433/history_db
+    username: history_user
+    password: history_password
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 1000
+        order_inserts: true
+        order_updates: true
+        generate_statistics: true
+        connection:
+          provider_disables_autocommit: true
   kafka:
     bootstrap-servers: localhost:29092
+    topic: raw-estate-data
     consumer:
-      group-id: estate-group
-      trusted-package: com.petrov.content_loader_adapter.dto
+      group-id: content-processor-group
+      trusted-package: com.petrov.content_processor.dto
       auto-commit: false
       auto-offset-reset: earliest
       max-poll-records: 500
       fetch-max-bytes: 52428800 #50mb
-
+  service:
+    batch-size: 1000
 server:
-  port: 8081
-
+  port: 8082
 springdoc:
   api-docs:
     path: /api-docs
   swagger-ui:
     path: /swagger-ui.html
+logging:
+  level:
+    com.petrov.content-processor: DEBUG
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE

@@ -1,4 +1,4 @@
-package com.petrov.content_processor.entity;
+package com.petrov.price_history.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -6,9 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -17,52 +15,39 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
+@Table(name = "price_history")
+@AllArgsConstructor
 @Getter
 @Setter
-@AllArgsConstructor
-@Table(name = "estates",
-		uniqueConstraints = @UniqueConstraint(
-				columnNames = {"cadastr_number", "source"}
-		))
-public class Estate {
+public class PriceHistoryRecord {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	@NotNull
 	@Column(name = "cadastr_number", nullable = false)
 	private String cadastrNumber;
 
-	@NotNull
 	@Column(nullable = false)
 	private String source;
 
-	@NotNull
-	@Column(nullable = false, precision = 15, scale = 2)
+	@Column(nullable = false, precision = 12, scale = 2)
 	private BigDecimal price;
+
+	@Column(nullable = false)
+	private LocalDateTime recordedAt;
 
 	@Column(precision = 10, scale = 2)
 	private BigDecimal square;
 
-	@Column(name = "room_count")
-	private Integer roomCount;
-
-	@Column(name = "total_floors")
-	private Integer totalFloors;
-
-	@Column(name = "updated_at", nullable = false)
-	private LocalDateTime updatedAt;
-
 	private String type;
-	private Integer floor;
-	private String address;
 
 	@Version
 	private Long version;
 
-	public Estate() {
-		this.updatedAt = LocalDateTime.now();
+	public PriceHistoryRecord() {
+		this.recordedAt = LocalDateTime.now();
 		this.version = 0L;
 	}
+
 }
