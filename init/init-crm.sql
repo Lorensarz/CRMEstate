@@ -1,4 +1,3 @@
--- Создание дополнительных схем если нужно
 CREATE SCHEMA IF NOT EXISTS crm;
 
 -- Таблица пользователей
@@ -36,3 +35,9 @@ CREATE TABLE IF NOT EXISTS tasks (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_building_cadastr ON buildings(cadastr_number);
+CREATE INDEX IF NOT EXISTS idx_building_updated ON buildings(updated_at);
+CREATE INDEX IF NOT EXISTS idx_task_assigned ON tasks(assigned_to);
+CREATE INDEX IF NOT EXISTS idx_task_building ON tasks(building_id);
+CREATE INDEX IF NOT EXISTS idx_task_status ON tasks(status);
