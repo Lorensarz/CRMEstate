@@ -7,9 +7,7 @@ import org.mapstruct.Mapper;
 @Mapper
 public interface EstateDataMapper {
 
-
-	EstateDataDto estateToEstateDataDto(Estate estate);
-
-	Estate estateDataDtoToEstate(EstateDataDto estateDataDto);
+	EstateDataDto toDto(Estate estate);
+	Estate toEntity(EstateDataDto estateDataDto);
 
 }

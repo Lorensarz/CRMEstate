@@ -30,9 +30,12 @@ public class User {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
+	@Column(name = "username", nullable = false, unique = true)
+	private String username;
+
 	@NotBlank
 	@Column(name = "first_name", nullable = false)
-	private String firsName;
+	private String firstName;
 
 	@NotBlank
 	@Column(name = "last_name", nullable = false)

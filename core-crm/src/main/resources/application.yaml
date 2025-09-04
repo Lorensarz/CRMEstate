@@ -8,7 +8,31 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+        order_updates: true
+  quartz:
+    job-store-type: jdbc
+    jdbc:
+      initialize-schema: always
+    properties:
+      org:
+        quartz:
+          scheduler:
+            instanceName: CrmQuartzScheduler
+            instanceId: AUTO
+          jobStore:
+            class: org.quartz.impl.jdbcjobstore.JobStoreTX
+            driverDelegateClass: org.quartz.impl.jdbcjobstore.PostgreSQLDelegate
+            tablePrefix: QRTZ_
+            isClustered: true
+            clusterCheckingInterval: 20000
+          threadPoll:
+            class: org.quartz.simpl.SimpleThreadPool
+            threadCount: 10
+            threadPriority: 5
   kafka:
     bootstrap-servers: localhost:29092
     consumer:
