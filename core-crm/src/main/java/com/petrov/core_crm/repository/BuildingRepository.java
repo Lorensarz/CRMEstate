@@ -15,6 +15,6 @@ public interface BuildingRepository extends JpaRepository<Building, Long>, JpaSp
 
 	Optional<Building> findByCadastrNumber(String cadastrNumber);
 
-	@Query("SELECT b FROM buildings b WHERE b.updatedAt < :thresholdDate")
+	@Query("SELECT b FROM Building b WHERE b.updatedAt < :thresholdDate")
 	List<Building> findBuildingsWithNoRecentActivity(LocalDateTime thresholdDate);
 }

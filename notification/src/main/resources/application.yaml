@@ -16,11 +16,37 @@ spring:
     show-sql: true
   kafka:
     bootstrap-servers: localhost:29092
+    topic: raw-estate-data
     consumer:
-      group-id: estate-group
+      group-id: notification-group
+      trusted-package: com.petrov.notification.dto
+      auto-commit: false
+      auto-offset-reset: earliest
+      max-poll-records: 500
+      fetch-max-bytes: 52428800 #50mb
+    listener:
+      ack-mode: MANUAL_IMMEDIATE
+notification:
+  retry:
+    max-attempts: 5
+    backoff-delay: 2000
+    backoff-multiplier: 2
+  external:
+    sms:
+      url: ${SMS_API_URL:https://sms-api.example.com/send}
+      timeout: 5000
+    email:
+      url: ${EMAIL_API_URL:https://email-api.example.com/send}
+      timeout: 5000
 
 server:
   port: 8085
+
+logging:
+  level:
+    com.petrov.notification: DEBUG
+    org.springframework.kafka: INFO
+    org.springframework.retry: TRACE
 
 springdoc:
   api-docs:

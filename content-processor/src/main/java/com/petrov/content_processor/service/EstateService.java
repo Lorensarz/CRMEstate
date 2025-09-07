@@ -26,7 +26,7 @@ public class EstateService {
 	@Transactional
 	public void processEstateBatch(List<EstateDataDto> estateDataDtoList) {
 		List<Estate> estates = estateDataDtoList.stream()
-				.map(estateDataMapper::estateDataDtoToEstate)
+				.map(estateDataMapper::toEntity)
 				.toList();
 
 		for (Estate estate : estates) {

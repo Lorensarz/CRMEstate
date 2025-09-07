@@ -1,10 +1,13 @@
 spring:
   application:
     name: core-crm
+
   datasource:
     url: jdbc:postgresql://localhost:5432/crm_db
     username: crm_user
     password: crm_password
+    driver-class-name: org.postgresql.Driver
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -13,6 +16,7 @@ spring:
         jdbc:
           batch_size: 50
         order_updates: true
+
   quartz:
     job-store-type: jdbc
     jdbc:
@@ -26,17 +30,33 @@ spring:
           jobStore:
             class: org.quartz.impl.jdbcjobstore.JobStoreTX
             driverDelegateClass: org.quartz.impl.jdbcjobstore.PostgreSQLDelegate
+            dataSource: quartzDS
             tablePrefix: QRTZ_
             isClustered: true
-            clusterCheckingInterval: 20000
-          threadPoll:
-            class: org.quartz.simpl.SimpleThreadPool
-            threadCount: 10
-            threadPriority: 5
+            clusterCheckinInterval: 20000
+
+  # Отдельный Quartz DataSource для Hikari
+  quartz-datasource:
+    quartzDS:
+      jdbc-url: jdbc:postgresql://localhost:5432/crm_db
+      username: crm_user
+      password: crm_password
+      driver-class-name: org.postgresql.Driver
+      maximum-pool-size: 5
+      minimum-idle: 2
+
+async:
+  executor:
+    core-pool-size: 5
+    max-pool-size: 10
+    queue-capacity: 100
+    thread-name-prefix: NotificationThread-
+
   kafka:
     bootstrap-servers: localhost:29092
     consumer:
       group-id: estate-group
+
 server:
   port: 8080
 

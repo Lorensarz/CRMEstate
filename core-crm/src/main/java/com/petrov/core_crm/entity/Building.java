@@ -11,6 +11,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -23,6 +24,7 @@ import java.util.List;
 @Getter
 @Setter
 @Table(name = "buildings")
+@NoArgsConstructor
 public class Building {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
