@@ -36,7 +36,6 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- Дополнительные зависимости которые не входят в spring-boot-starter-parent -->
             <dependency>
                 <groupId>org.springdoc</groupId>
                 <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
@@ -52,7 +51,7 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <skip>true</skip> <!-- Пропускаем для родительского pom -->
+                    <skip>true</skip>
                 </configuration>
             </plugin>
 

@@ -1,15 +1,19 @@
 spring:
   application:
     name: content-processor
+
   datasource:
     url: jdbc:postgresql://localhost:5433/history_db
     username: history_user
     password: history_password
+
   jpa:
     hibernate:
       ddl-auto: update
     properties:
       hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
         jdbc:
           batch_size: 1000
         order_inserts: true
@@ -17,6 +21,13 @@ spring:
         generate_statistics: true
         connection:
           provider_disables_autocommit: true
+
+  batch:
+    job:
+      enabled: false
+    jdbc:
+      initialize-schema: always
+
   kafka:
     bootstrap-servers: localhost:29092
     topic: raw-estate-data
@@ -27,18 +38,28 @@ spring:
       auto-offset-reset: earliest
       max-poll-records: 500
       fetch-max-bytes: 52428800 #50mb
-  service:
-    batch-size: 1000
+
 server:
   port: 8082
+
 springdoc:
   api-docs:
     path: /api-docs
   swagger-ui:
     path: /swagger-ui.html
+
 logging:
   level:
-    com.petrov.content-processor: DEBUG
+    com.petrov.content_processor: DEBUG
     org.springframework.kafka: INFO
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+app:
+  batch:
+    chunk-size: 1000
+    retry:
+      max-attempts: 3
+      backoff:
+        initial-interval: 1000
+        multiplier: 2.0

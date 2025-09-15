@@ -7,30 +7,36 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
+
 @Repository
 public interface EstateRepository extends JpaRepository<Estate, Long> {
 
+	Optional<Estate> findByCadastrNumberAndSource(String cadastrNumber, String source);
+
+	List<Estate> findByCadastrNumber(String cadastrNumber);
+
+	List<Estate> findBySource(String source);
 
 	@Modifying
-	@Query(value = """
-			INSERT INTO estates (cadastr_number, source, price, type, square, room_count,
-			                     floor, total_floors, address, updated_at, version)
-			   VALUES (:#{#estate.cadastrNumber}, :#{#estate.source}, :#{#estate.price},
-			           :#{#estate.type}, :#{#estate.square}, :#{#estate.roomCount},
-			           :#{#estate.floor}, :#{#estate.totalFloors}, :#{#estate.address},
-			           :#{#estate.updatedAt}, 0)
-			ON CONFLICT (cadastr_number, source)
-			DO UPDATE SET
-			    price = EXCLUDED.price,
-			    type = EXCLUDED.type,
-			    square = EXCLUDED.square,
-			    room_count = EXCLUDED.room_count,
-			    floor = EXCLUDED.floor,
-			    total_floors = EXCLUDED.total_floors,
-			    address = EXCLUDED.address,
-			    updated_at = EXCLUDED.updated_at,
-			    version = estates.version + 1
-			""", nativeQuery = true)
-	void upsertEstate(@Param("estate")Estate estate);
+	@Query("UPDATE Estate e SET e.price = :price, e.square = :square, e.roomCount = :roomCount, " +
+			"e.floor = :floor, e.totalFloors = :totalFloors, e.address = :address, " +
+			"e.type = :type, e.updatedAt = CURRENT_TIMESTAMP, e.version = e.version + 1 " +
+			"WHERE e.cadastrNumber = :cadastrNumber AND e.source = :source")
+	int updateEstate(@Param("cadastrNumber") String cadastrNumber,
+					 @Param("source") String source,
+					 @Param("price") BigDecimal price,
+					 @Param("square") BigDecimal square,
+					 @Param("roomCount") Integer roomCount,
+					 @Param("floor") Integer floor,
+					 @Param("totalFloors") Integer totalFloors,
+					 @Param("address") String address,
+					 @Param("type") String type);
 
+	@Modifying
+	@Query("DELETE FROM Estate e WHERE e.cadastrNumber = :cadastrNumber AND e.source = :source")
+	void deleteByCadastrNumberAndSource(@Param("cadastrNumber") String cadastrNumber,
+										@Param("source") String source);
 }

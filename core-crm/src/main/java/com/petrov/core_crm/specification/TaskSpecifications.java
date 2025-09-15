@@ -31,10 +31,10 @@ public class TaskSpecifications {
 				predicates.add(cb.equal(root.get("priority"), priority));
 			}
 			if (Objects.nonNull(dueDateFrom)) {
-				predicates.add(cb.equal(root.get("dueDatFrom"), dueDateFrom));
+				predicates.add(cb.equal(root.get("dueDate"), dueDateFrom));
 			}
 			if (Objects.nonNull(dueDateTo)) {
-				predicates.add(cb.equal(root.get("dueDatTo"), dueDateTo));
+				predicates.add(cb.equal(root.get("dueDate"), dueDateTo));
 			}
 
 			return cb.and(predicates.toArray(new Predicate[0]));

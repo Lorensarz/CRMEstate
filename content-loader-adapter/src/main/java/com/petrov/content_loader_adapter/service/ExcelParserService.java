@@ -46,8 +46,6 @@ public class ExcelParserService {
 			}
 		}
 		return estateDataDtoList;
-
-
 	}
 
 	private EstateDataDto parseRowToDto(Row row) {
@@ -73,7 +71,6 @@ public class ExcelParserService {
 			log.error("Error parsing row: {}", e.getMessage());
 			return null;
 		}
-
 		return dto;
 	}
 
