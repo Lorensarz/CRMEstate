@@ -16,10 +16,14 @@ public class NotificationConsumer {
 
 	private final NotificationService notificationService;
 
-	@KafkaListener(topics = "notifications", groupId = "notification-group")
+	@KafkaListener(
+			topics = "${spring.kafka.topic.main:notifications}",
+			groupId = "${spring.kafka.consumer.group-id:notification-group}",
+			containerFactory = "kafkaListenerContainerFactory" // Убедитесь, что это имя совпадает с бин-методом
+	)
 	public void consumeNotification(@Payload TaskNotificationEvent event, Acknowledgment ack) {
 		try {
-			log.info("Received notification event: {}", event);
+			log.info("Received notification event for task: {}", event.getTaskId());
 
 			notificationService.processNotification(event);
 
@@ -27,14 +31,25 @@ public class NotificationConsumer {
 			log.info("Notification processed successfully: {}", event.getTaskId());
 
 		} catch (Exception e) {
-			log.error("Failed to process notification: {}", event.getTaskId(), e);
-			throw e;
+			log.error("Failed to process notification for task: {}", event.getTaskId(), e);
+			throw e; // Будет обработано DefaultErrorHandler и отправлено в DLT
 		}
 	}
 
-	@KafkaListener(topics = "notifications.DLT", groupId = "notification-dlt-group")
-	public void consumeDltMessage(@Payload TaskNotificationEvent event, Acknowledgment ack) {
-		log.warn("Received message from Dead Letter Topic: {}", event);
-		ack.acknowledge();
+	@KafkaListener(
+			topics = "${spring.kafka.topic.dlt:notifications.DLT}",
+			groupId = "notification-dlt-group",
+			containerFactory = "kafkaListenerContainerFactory"
+	)
+	public void consumeDltMessage(@Payload Object dlqMessage, Acknowledgment ack) {
+		try {
+			log.warn("Received message from Dead Letter Topic: {}", dlqMessage);
+			// Здесь можно добавить логику обработки DLT сообщений
+
+		} catch (Exception e) {
+			log.error("Error processing DLT message: {}", dlqMessage, e);
+		} finally {
+			ack.acknowledge();
+		}
 	}
 }

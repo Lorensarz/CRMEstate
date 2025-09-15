@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
@@ -27,8 +28,8 @@ public class TaskService {
 	private final BuildingRepository buildingRepository;
 	private final NotificationService notificationService;
 
-	public Page<Task> findAll(Pageable pageable) {
-		return taskRepository.findAll(pageable);
+	public Page<Task> findAll(Specification<Task> spec, Pageable pageable) {
+		return taskRepository.findAll(spec, pageable);
 	}
 
 	public Task findById(Long id) {

@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Objects;
 
 @Slf4j
 @Service
@@ -20,8 +20,6 @@ public class PriceHistoryService {
 	private final PriceHistoryRepository priceHistoryRepository;
 	private final EstateDataMapper estateDataMapper;
 
-
-
 	@Transactional
 	public void processEstateBatch(List<EstateDataDto> estateDataDtoList) {
 		if (estateDataDtoList.isEmpty()) {
@@ -29,17 +27,25 @@ public class PriceHistoryService {
 		}
 
 		List<PriceHistoryRecord> records = estateDataDtoList.stream()
-				.map(estateDataMapper::estateDataDtoToPriceHistoryRecord)
+				.map(this::convertSafely)
+				.filter(Objects::nonNull)
 				.toList();
-		List<PriceHistoryRecord> savedRecords = priceHistoryRepository.saveAll(records);
 
-		log.info("Saved {} price history records to DB. Sample cadastr numbers: {}",
-				savedRecords.size(),
-				savedRecords.stream()
-						.limit(5)
-						.map(PriceHistoryRecord::getCadastrNumber)
-						.collect(Collectors.toList())
-		);
+		if (!records.isEmpty()) {
+			List<PriceHistoryRecord> savedRecords = priceHistoryRepository.saveAll(records);
+			log.info("Saved {} price history records to DB. Total batch size: {}",
+					savedRecords.size(),
+					estateDataDtoList.size());
+		}
 	}
 
+	private PriceHistoryRecord convertSafely(EstateDataDto dto) {
+		try {
+			return estateDataMapper.estateDataDtoToPriceHistoryRecord(dto);
+		} catch (Exception e) {
+			log.warn("Failed to convert EstateDataDto for cadastr: {}. Error: {}",
+					dto.getCadastrNumber(), e.getMessage());
+			return null;
+		}
+	}
 }

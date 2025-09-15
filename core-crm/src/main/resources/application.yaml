@@ -13,6 +13,7 @@ spring:
       ddl-auto: update
     properties:
       hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         jdbc:
           batch_size: 50
         order_updates: true
@@ -21,29 +22,6 @@ spring:
     job-store-type: jdbc
     jdbc:
       initialize-schema: always
-    properties:
-      org:
-        quartz:
-          scheduler:
-            instanceName: CrmQuartzScheduler
-            instanceId: AUTO
-          jobStore:
-            class: org.quartz.impl.jdbcjobstore.JobStoreTX
-            driverDelegateClass: org.quartz.impl.jdbcjobstore.PostgreSQLDelegate
-            dataSource: quartzDS
-            tablePrefix: QRTZ_
-            isClustered: true
-            clusterCheckinInterval: 20000
-
-  # Отдельный Quartz DataSource для Hikari
-  quartz-datasource:
-    quartzDS:
-      jdbc-url: jdbc:postgresql://localhost:5432/crm_db
-      username: crm_user
-      password: crm_password
-      driver-class-name: org.postgresql.Driver
-      maximum-pool-size: 5
-      minimum-idle: 2
 
 async:
   executor:
@@ -52,10 +30,13 @@ async:
     queue-capacity: 100
     thread-name-prefix: NotificationThread-
 
-  kafka:
-    bootstrap-servers: localhost:29092
-    consumer:
-      group-id: estate-group
+kafka:
+  bootstrap-servers: localhost:29092
+  consumer:
+    group-id: estate-group
+  producer:
+    key-serializer: org.apache.kafka.common.serialization.StringSerializer
+    value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
 server:
   port: 8080
@@ -65,3 +46,12 @@ springdoc:
     path: /api-docs
   swagger-ui:
     path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+
+logging:
+  level:
+    com.petrov.core_crm: INFO
+    org.springframework.retry: DEBUG
+    org.springframework.kafka: INFO
+    org.quartz: INFO

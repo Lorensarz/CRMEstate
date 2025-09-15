@@ -2,30 +2,42 @@ spring:
   application:
     name: notification
   datasource:
-    crm:
-      url: jdbc:postgresql://localhost:5432/crm_db
-      username: crm_user
-      password: crm_password
-    history:
-      url: jdbc:postgresql://localhost:5433/history_db
-      username: history_user
-      password: history_password
+    url: jdbc:postgresql://localhost:5432/notification_db
+    username: notification_user
+    password: notification_password
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          lob:
+            non_contextual_creation: true
   kafka:
     bootstrap-servers: localhost:29092
-    topic: raw-estate-data
+    topic:
+      main: notifications
+      dlt: notifications.DLT
     consumer:
       group-id: notification-group
       trusted-package: com.petrov.notification.dto
       auto-commit: false
       auto-offset-reset: earliest
       max-poll-records: 500
-      fetch-max-bytes: 52428800 #50mb
+      fetch-max-bytes: 52428800
+      properties:
+        spring:
+          json:
+            trusted:
+              packages: com.petrov.notification.dto
+    producer:
+      retries: 3
+      acks: all
     listener:
       ack-mode: MANUAL_IMMEDIATE
+
 notification:
   retry:
     max-attempts: 5
@@ -47,6 +59,7 @@ logging:
     com.petrov.notification: DEBUG
     org.springframework.kafka: INFO
     org.springframework.retry: TRACE
+    org.hibernate.SQL: DEBUG
 
 springdoc:
   api-docs:

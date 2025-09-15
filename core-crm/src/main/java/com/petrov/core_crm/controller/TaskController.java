@@ -6,7 +6,6 @@ import com.petrov.core_crm.entity.Task;
 import com.petrov.core_crm.enums.TaskPriority;
 import com.petrov.core_crm.enums.TaskStatus;
 import com.petrov.core_crm.mapper.TaskMapper;
-import com.petrov.core_crm.repository.TaskRepository;
 import com.petrov.core_crm.service.TaskService;
 import com.petrov.core_crm.specification.TaskSpecifications;
 import jakarta.validation.Valid;
@@ -48,7 +47,7 @@ public class TaskController {
 
 		Specification<Task> spec = TaskSpecifications.withFilters(
 				assignedTo, buildingId, status, priority, dueDateFrom, dueDateTo);
-		Page<Task> tasks = taskService.findAll(pageable);
+		Page<Task> tasks = taskService.findAll(spec, pageable);
 		Page<TaskResponse> response = tasks.map(taskMapper::toResponse);
 		return ResponseEntity.ok(response);
 	}
@@ -61,13 +60,9 @@ public class TaskController {
 	}
 
 	@PostMapping
-	public ResponseEntity<TaskResponse> createTask(
-			@Valid TaskRequest request,
-			@RequestParam Long assignedToId,
-			@RequestParam Long buildingId) {
-
+	public ResponseEntity<TaskResponse> createTask(@Valid @RequestBody TaskRequest request) {
 		Task task = taskMapper.toEntity(request);
-		Task createdTask = taskService.create(task, assignedToId, buildingId);
+		Task createdTask = taskService.create(task, request.getAssignedToId(), request.getBuildingId());
 		TaskResponse response = taskMapper.toResponse(createdTask);
 		return ResponseEntity.created(URI.create("/api/tasks/" + createdTask.getId()))
 				.body(response);

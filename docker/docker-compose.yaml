@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   # База данных для CRM
   postgres-crm:
@@ -41,6 +43,27 @@ services:
     networks:
       - estate-network
 
+  # База данных для Notification сервиса
+  postgres-notification:
+    image: postgres:15-alpine
+    container_name: postgres-notification
+    environment:
+      POSTGRES_DB: notification_db
+      POSTGRES_USER: notification_user
+      POSTGRES_PASSWORD: notification_password
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-notification-data:/var/lib/postgresql/data
+      - ./init/init-notification.sql:/docker-entrypoint-initdb.d/init-notification.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notification_user -d notification_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - estate-network
+
   # Zookeeper для Kafka
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
@@ -48,8 +71,13 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_DATA_DIR: /data
+      ZOOKEEPER_LOG_DIR: /logs
     ports:
       - "2181:2181"
+    volumes:
+      - zookeeper-data:/data
+      - zookeeper-logs:/logs
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 2181 || exit 1"]
       interval: 10s
@@ -79,19 +107,22 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
       KAFKA_DELETE_TOPIC_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_RETENTION_BYTES: 1073741824
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
     volumes:
       - kafka-data:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list"]
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 5
-      start_period: 40s
+      retries: 10
+      start_period: 60s
     networks:
       - estate-network
     restart: unless-stopped
 
-  # Сервис для создания топиков Kafka
+  # Сервис для создания топиков Kafka - FIXED
   kafka-init:
     image: confluentinc/cp-kafka:7.4.0
     container_name: kafka-init
@@ -100,20 +131,48 @@ services:
         condition: service_healthy
     command: >
       bash -c "
-      echo 'Waiting for Kafka to be ready...';
-      sleep 30;
-      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic raw-estate-data --partitions 3 --replication-factor 1;
-      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic notifications --partitions 3 --replication-factor 1;
-      echo 'Topics created:';
-      kafka-topics --bootstrap-server kafka:9092 --list;
+      echo 'Waiting for Kafka to be ready...'
+      # Ждем пока Kafka станет полностью доступна
+      until kafka-topics --bootstrap-server kafka:9092 --list 2>/dev/null; do
+        echo 'Kafka is not ready yet...'
+        sleep 5
+      done
+      
+      echo 'Creating topics...'
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic raw-estate-data --partitions 3 --replication-factor 1 --config retention.ms=604800000
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic notifications --partitions 3 --replication-factor 1 --config retention.ms=604800000
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic notifications.DLT --partitions 3 --replication-factor 1 --config retention.ms=2592000000
+      
+      echo 'Topics created:'
+      kafka-topics --bootstrap-server kafka:9092 --list
+      echo 'Kafka initialization completed successfully'
       "
     networks:
       - estate-network
-    restart: "no"
+    restart: on-failure
+
+  # UI для управления Kafka
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8080:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
+      - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:2181
+    networks:
+      - estate-network
+    restart: unless-stopped
 
 volumes:
   postgres-crm-data:
   postgres-history-data:
+  postgres-notification-data:
+  zookeeper-data:
+  zookeeper-logs:
   kafka-data:
 
 networks:

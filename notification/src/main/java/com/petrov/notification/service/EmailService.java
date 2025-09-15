@@ -5,6 +5,7 @@ import com.petrov.notification.exception.NotificationFailedException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Recover;
 import org.springframework.retry.annotation.Retryable;
@@ -13,6 +14,9 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.Duration;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -20,9 +24,13 @@ import java.time.Duration;
 public class EmailService {
 
 	private final WebClient emailWebClient;
+	private final KafkaTemplate<String, Object> kafkaTemplate;
 
 	@Value("${notification.external.email.timeout:5000}")
 	private int timeout;
+
+	@Value("${spring.kafka.topic.dlt:notifications.DLT}")
+	private String dltTopic;
 
 	@Retryable(
 			retryFor = {NotificationFailedException.class, WebClientResponseException.class},
@@ -57,11 +65,22 @@ public class EmailService {
 	@Recover
 	public void recoverEmail(NotificationFailedException e, NotificationRequest request) {
 		log.error("All retry attempts failed for Email to: {}. Error: {}", request.getTo(), e.getMessage());
-		sendToDlq(request, "Email", e.getMessage());
+		sendToDlq(request, "EMAIL", e.getMessage());
 	}
 
 	private void sendToDlq(NotificationRequest request, String type, String error) {
-		log.warn("Sending to DLQ: {} notification failed for {} - Error: {}",
-				type, request.getTo(), error);
+		Map<String, Object> dlqMessage = new HashMap<>();
+		dlqMessage.put("originalRequest", request);
+		dlqMessage.put("error", error);
+		dlqMessage.put("type", type);
+		dlqMessage.put("timestamp", Instant.now());
+		dlqMessage.put("retryAttempts", 5);
+
+		try {
+			kafkaTemplate.send(dltTopic, dlqMessage);
+			log.warn("Sent to DLQ: {} notification failed for {}", type, request.getTo());
+		} catch (Exception kafkaException) {
+			log.error("Failed to send message to DLQ for {}: {}", request.getTo(), kafkaException.getMessage());
+		}
 	}
 }

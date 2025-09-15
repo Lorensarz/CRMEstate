@@ -59,7 +59,7 @@ public class BuildingController {
 	}
 
 	@PostMapping
-	public ResponseEntity<BuildingResponse> createBuilding(@Valid BuildingRequest request) {
+	public ResponseEntity<BuildingResponse> createBuilding(@Valid @RequestBody BuildingRequest request) {
 		Building building = buildingMapper.toEntity(request);
 		Building createdBuilding = buildingService.create(building);
 		BuildingResponse response = buildingMapper.toResponse(createdBuilding);
