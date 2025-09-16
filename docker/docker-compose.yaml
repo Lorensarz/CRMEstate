@@ -122,31 +122,16 @@ services:
       - estate-network
     restart: unless-stopped
 
-  # Сервис для создания топиков Kafka - FIXED
+  # Сервис для создания топиков Kafka
   kafka-init:
     image: confluentinc/cp-kafka:7.4.0
     container_name: kafka-init
     depends_on:
       kafka:
         condition: service_healthy
-    command: >
-      bash -c "
-      echo 'Waiting for Kafka to be ready...'
-      # Ждем пока Kafka станет полностью доступна
-      until kafka-topics --bootstrap-server kafka:9092 --list 2>/dev/null; do
-        echo 'Kafka is not ready yet...'
-        sleep 5
-      done
-      
-      echo 'Creating topics...'
-      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic raw-estate-data --partitions 3 --replication-factor 1 --config retention.ms=604800000
-      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic notifications --partitions 3 --replication-factor 1 --config retention.ms=604800000
-      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic notifications.DLT --partitions 3 --replication-factor 1 --config retention.ms=2592000000
-      
-      echo 'Topics created:'
-      kafka-topics --bootstrap-server kafka:9092 --list
-      echo 'Kafka initialization completed successfully'
-      "
+    volumes:
+      - ./init-kafka-topics.sh:/init-kafka-topics.sh
+    command: ["bash", "/init-kafka-topics.sh"]
     networks:
       - estate-network
     restart: on-failure
