@@ -22,7 +22,20 @@ spring:
     job-store-type: jdbc
     jdbc:
       initialize-schema: always
-
+    properties:
+      org:
+        quartz:
+          jobStore:
+            class: org.springframework.scheduling.quartz.LocalDataSourceJobStore
+            driverDelegateClass: org.quartz.impl.jdbcjobstore.PostgreSQLDelegate
+            useProperties: true
+            tablePrefix: QRTZ_
+            isClustered: false
+            misfireThreshold: 60000
+            clusterCheckinInterval: 15000
+          scheduler:
+            instanceId: AUTO
+            instanceName: quartzScheduler
 async:
   executor:
     core-pool-size: 5
@@ -39,7 +52,7 @@ kafka:
     value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
 server:
-  port: 8080
+  port: 8084
 
 springdoc:
   api-docs:

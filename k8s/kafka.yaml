@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka
+  namespace: crm-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      containers:
+        - name: kafka
+          image: bitnami/kafka:3.7
+          env:
+            - name: KAFKA_CFG_NODE_ID
+              value: "1"
+            - name: KAFKA_CFG_PROCESS_ROLES
+              value: "controller,broker"
+            - name: KAFKA_CFG_LISTENERS
+              value: "PLAINTEXT://:9092,CONTROLLER://:9093"
+            - name: KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP
+              value: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+            - name: KAFKA_CFG_CONTROLLER_QUORUM_VOTERS
+              value: "1@kafka-service:9093"
+            - name: KAFKA_CFG_CONTROLLER_LISTENER_NAMES
+              value: "CONTROLLER"
+            - name: KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE
+              value: "false"
+            - name: KAFKA_CFG_INTER_BROKER_LISTENER_NAME
+              value: "PLAINTEXT"
+            - name: KAFKA_CFG_ADVERTISED_LISTENERS
+              value: "PLAINTEXT://kafka-service.crm-system.svc.cluster.local:9092,CONTROLLER://kafka-service.crm-system.svc.cluster.local:9093"
+          ports:
+            - containerPort: 9092
+            - containerPort: 9093
+          livenessProbe:
+            tcpSocket:
+              port: 9092
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          readinessProbe:
+            tcpSocket:
+              port: 9092
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1024Mi"
+              cpu: "500m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-service
+  namespace: crm-system
+spec:
+  selector:
+    app: kafka
+  ports:
+    - name: broker
+      port: 9092
+      targetPort: 9092
+    - name: controller
+      port: 9093
+      targetPort: 9093
+  type: ClusterIP
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-init-topics
+  namespace: crm-system
+spec:
+  template:
+    spec:
+      containers:
+        - name: kafka-init
+          image: bitnami/kafka:3.7
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Waiting for Kafka to be ready...";
+              until kafka-topics.sh --bootstrap-server kafka-service:9092 --list; do
+                echo "Kafka is not ready yet...";
+                sleep 10;
+              done;
+              echo "Creating topics...";
+              kafka-topics.sh --bootstrap-server kafka-service:9092 --create --if-not-exists --topic raw-estate-data --partitions 3 --replication-factor 1;
+              kafka-topics.sh --bootstrap-server kafka-service:9092 --create --if-not-exists --topic notifications --partitions 3 --replication-factor 1;
+              kafka-topics.sh --bootstrap-server kafka-service:9092 --create --if-not-exists --topic notifications.DLT --partitions 3 --replication-factor 1;
+              echo "Topics created:";
+              kafka-topics.sh --bootstrap-server kafka-service:9092 --list;
+              echo "Kafka initialization completed successfully";
+          env:
+            - name: ALLOW_PLAINTEXT_LISTENER
+              value: "yes"
+      restartPolicy: OnFailure
+  backoffLimit: 5

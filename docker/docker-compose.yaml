@@ -64,56 +64,39 @@ services:
     networks:
       - estate-network
 
-  # Zookeeper для Kafka
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.4.0
-    container_name: zookeeper
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-      ZOOKEEPER_DATA_DIR: /data
-      ZOOKEEPER_LOG_DIR: /logs
-    ports:
-      - "2181:2181"
-    volumes:
-      - zookeeper-data:/data
-      - zookeeper-logs:/logs
-    healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 2181 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-    networks:
-      - estate-network
-    restart: unless-stopped
-
-  # Kafka
+  # Kafka в режиме KRaft
   kafka:
-    image: confluentinc/cp-kafka:7.4.0
+    image: bitnami/kafka:3.7
     container_name: kafka
-    depends_on:
-      zookeeper:
-        condition: service_healthy
-    ports:
-      - "9092:9092"
-      - "29092:29092"
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
-      KAFKA_DELETE_TOPIC_ENABLE: "true"
-      KAFKA_LOG_RETENTION_HOURS: 168
-      KAFKA_LOG_RETENTION_BYTES: 1073741824
-      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      # Настройки KRaft
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      # Общие настройки
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_CFG_DELETE_TOPIC_ENABLE: "true"
+      KAFKA_CFG_LOG_RETENTION_HOURS: 168
+      KAFKA_CFG_NUM_PARTITIONS: 3
+      KAFKA_CFG_DEFAULT_REPLICATION_FACTOR: 1
+
+      # Для доступа с хоста
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    ports:
+      - "9092:9092"    # Internal broker port
+      - "29092:29092"  # External broker port
+      - "9093:9093"    # Controller port
     volumes:
-      - kafka-data:/var/lib/kafka/data
+      - kafka-data:/bitnami/kafka
     healthcheck:
-      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list || exit 1"]
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 10
@@ -124,14 +107,28 @@ services:
 
   # Сервис для создания топиков Kafka
   kafka-init:
-    image: confluentinc/cp-kafka:7.4.0
+    image: bitnami/kafka:3.7
     container_name: kafka-init
     depends_on:
       kafka:
         condition: service_healthy
-    volumes:
-      - ./init-kafka-topics.sh:/init-kafka-topics.sh
-    command: ["bash", "/init-kafka-topics.sh"]
+    environment:
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    command: >
+      /bin/bash -c "
+      echo 'Waiting for Kafka to be ready...';
+      until kafka-topics.sh --bootstrap-server kafka:9092 --list; do
+        echo 'Kafka is not ready yet...';
+        sleep 5;
+      done;
+      echo 'Creating topics...';
+      kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic raw-estate-data --partitions 3 --replication-factor 1;
+      kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic notifications --partitions 3 --replication-factor 1;
+      kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic notifications.DLT --partitions 3 --replication-factor 1;
+      echo 'Topics created:';
+      kafka-topics.sh --bootstrap-server kafka:9092 --list;
+      echo 'Kafka initialization completed successfully'
+      "
     networks:
       - estate-network
     restart: on-failure
@@ -147,7 +144,7 @@ services:
     environment:
       - KAFKA_CLUSTERS_0_NAME=local
       - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
-      - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:2181
+      - KAFKA_CLUSTERS_0_ZOOKEEPER=kafka:9093
     networks:
       - estate-network
     restart: unless-stopped
@@ -156,8 +153,6 @@ volumes:
   postgres-crm-data:
   postgres-history-data:
   postgres-notification-data:
-  zookeeper-data:
-  zookeeper-logs:
   kafka-data:
 
 networks:

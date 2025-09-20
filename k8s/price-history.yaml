@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: price-history
+  namespace: crm-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: price-history
+  template:
+    metadata:
+      labels:
+        app: price-history
+    spec:
+      containers:
+        - name: price-history
+          image: price-history:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka-service:9092"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgresql-history-service:5432/history_db"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "history_user"
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: "history_password"
+            - name: KAFKA_TOPIC_RAW_ESTATE_DATA
+              value: "raw-estate-data"
+            - name: KAFKA_CONSUMER_GROUP_ID
+              value: "price-history-group"
+            - name: SERVER_PORT
+              value: "8083"
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "echo 'Liveness check'"]
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "echo 'Readiness check'"]
+            initialDelaySeconds: 30
+            periodSeconds: 5
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: price-history-service
+  namespace: crm-system
+spec:
+  selector:
+    app: price-history
+  ports:
+    - port: 8083
+      targetPort: 8083
+  type: ClusterIP

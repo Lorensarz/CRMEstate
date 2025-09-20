@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: content-processor
+  namespace: crm-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: content-processor
+  template:
+    metadata:
+      labels:
+        app: content-processor
+    spec:
+      containers:
+        - name: content-processor
+          image: content-processor:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka-service:9092"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgresql-history-service:5432/history_db"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "history_user"
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: "history_password"
+            - name: KAFKA_TOPIC_RAW_ESTATE_DATA
+              value: "raw-estate-data"
+            - name: KAFKA_CONSUMER_GROUP_ID
+              value: "content-processor-group"
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "echo 'Liveness check'"]
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "echo 'Readiness check'"]
+            initialDelaySeconds: 30
+            periodSeconds: 5

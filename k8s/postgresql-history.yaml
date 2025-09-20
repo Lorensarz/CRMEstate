@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgresql-history
+  namespace: crm-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgresql-history
+  template:
+    metadata:
+      labels:
+        app: postgresql-history
+    spec:
+      containers:
+        - name: postgresql
+          image: postgres:15-alpine
+          env:
+            - name: POSTGRES_DB
+              value: "history_db"
+            - name: POSTGRES_USER
+              value: "history_user"
+            - name: POSTGRES_PASSWORD
+              value: "history_password"
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: postgresql-storage
+              mountPath: /var/lib/postgresql/data
+            - name: init-script
+              mountPath: /docker-entrypoint-initdb.d
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "history_user", "-d", "history_db"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "history_user", "-d", "history_db"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: postgresql-storage
+          emptyDir: {}
+        - name: init-script
+          configMap:
+            name: postgres-init-history
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql-history-service
+  namespace: crm-system
+spec:
+  selector:
+    app: postgresql-history
+  ports:
+    - port: 5432
+      targetPort: 5432
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-history
+  namespace: crm-system
+data:
+  init-history.sql: |
+    CREATE TABLE IF NOT EXISTS price_history (
+        id SERIAL PRIMARY KEY,
+        cadastr_number VARCHAR(50) NOT NULL,
+        source VARCHAR(100) NOT NULL,
+        price DECIMAL(15,2) NOT NULL,
+        type VARCHAR(100),
+        square DECIMAL(10,2),
+        recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_price_history_cadastr ON price_history(cadastr_number);
+    CREATE INDEX IF NOT EXISTS idx_price_history_source ON price_history(source);
+    CREATE INDEX IF NOT EXISTS idx_price_history_cadastr_source ON price_history(cadastr_number, source);
+    CREATE INDEX IF NOT EXISTS idx_price_history_recorded_at ON price_history(recorded_at);

@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgresql-crm
+  namespace: crm-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgresql-crm
+  template:
+    metadata:
+      labels:
+        app: postgresql-crm
+    spec:
+      containers:
+        - name: postgresql
+          image: postgres:15-alpine
+          env:
+            - name: POSTGRES_DB
+              value: "crm_db"
+            - name: POSTGRES_USER
+              value: "crm_user"
+            - name: POSTGRES_PASSWORD
+              value: "crm_password"
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: postgresql-storage
+              mountPath: /var/lib/postgresql/data
+            - name: init-script
+              mountPath: /docker-entrypoint-initdb.d
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "crm_user", "-d", "crm_db"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "crm_user", "-d", "crm_db"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: postgresql-storage
+          emptyDir: {}
+        - name: init-script
+          configMap:
+            name: postgres-init-crm
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql-crm-service
+  namespace: crm-system
+spec:
+  selector:
+    app: postgresql-crm
+  ports:
+    - port: 5432
+      targetPort: 5432
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-crm
+  namespace: crm-system
+data:
+  init-crm.sql: |
+    CREATE TABLE IF NOT EXISTS estates (
+        id BIGSERIAL PRIMARY KEY,
+        cadastr_number VARCHAR(50) UNIQUE NOT NULL,
+        address TEXT NOT NULL,
+        price DECIMAL(15,2) NOT NULL,
+        area DECIMAL(10,2),
+        type VARCHAR(100),
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    CREATE TABLE IF NOT EXISTS users (
+        id BIGSERIAL PRIMARY KEY,
+        username VARCHAR(100) UNIQUE NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        phone VARCHAR(20),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    CREATE TABLE IF NOT EXISTS notifications (
+        id BIGSERIAL PRIMARY KEY,
+        user_id BIGINT NOT NULL REFERENCES users(id),
+        message TEXT NOT NULL,
+        type VARCHAR(50) NOT NULL,
+        status VARCHAR(20) DEFAULT 'PENDING',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        sent_at TIMESTAMP
+    );
