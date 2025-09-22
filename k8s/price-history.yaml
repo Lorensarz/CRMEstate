@@ -17,6 +17,8 @@ spec:
         - name: price-history
           image: price-history:latest
           imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8083
           env:
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: "kafka-service:9092"
@@ -32,16 +34,27 @@ spec:
               value: "price-history-group"
             - name: SERVER_PORT
               value: "8083"
+            - name: SPRING_PROFILES_ACTIVE
+              value: "kubernetes"
           livenessProbe:
-            exec:
-              command: ["sh", "-c", "echo 'Liveness check'"]
-            initialDelaySeconds: 60
-            periodSeconds: 10
+            httpGet:
+              path: /actuator/health
+              port: 8083
+            initialDelaySeconds: 90
+            periodSeconds: 30
           readinessProbe:
-            exec:
-              command: ["sh", "-c", "echo 'Readiness check'"]
-            initialDelaySeconds: 30
-            periodSeconds: 5
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8083
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1024Mi"
+              cpu: "500m"
 
 ---
 apiVersion: v1

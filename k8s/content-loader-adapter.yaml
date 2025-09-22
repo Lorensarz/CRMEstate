@@ -26,18 +26,27 @@ spec:
               value: "8081"
             - name: KAFKA_TOPIC_RAW_ESTATE_DATA
               value: "raw-estate-data"
+            - name: SPRING_PROFILES_ACTIVE
+              value: "kubernetes"
           livenessProbe:
             httpGet:
               path: /actuator/health
               port: 8081
-            initialDelaySeconds: 60
-            periodSeconds: 10
+            initialDelaySeconds: 90
+            periodSeconds: 30
           readinessProbe:
             httpGet:
-              path: /actuator/health
+              path: /actuator/health/readiness
               port: 8081
-            initialDelaySeconds: 30
-            periodSeconds: 5
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1024Mi"
+              cpu: "500m"
 
 ---
 apiVersion: v1

@@ -17,11 +17,13 @@ spec:
         - name: notification
           image: notification:latest
           imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8085
           env:
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: "kafka-service:9092"
             - name: SPRING_DATASOURCE_URL
-              value: "jdbc:postgresql://postgresql-notification:5432/notification_db"
+              value: "jdbc:postgresql://postgresql-notification-service:5432/notification_db"
             - name: SPRING_DATASOURCE_USERNAME
               value: "notification_user"
             - name: SPRING_DATASOURCE_PASSWORD
@@ -34,16 +36,27 @@ spec:
               value: "notification-group"
             - name: SERVER_PORT
               value: "8085"
+            - name: SPRING_PROFILES_ACTIVE
+              value: "kubernetes"
           livenessProbe:
-            exec:
-              command: ["sh", "-c", "echo 'Liveness check'"]
-            initialDelaySeconds: 60
-            periodSeconds: 10
+            httpGet:
+              path: /actuator/health
+              port: 8085
+            initialDelaySeconds: 90
+            periodSeconds: 30
           readinessProbe:
-            exec:
-              command: ["sh", "-c", "echo 'Readiness check'"]
-            initialDelaySeconds: 30
-            periodSeconds: 5
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8085
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1024Mi"
+              cpu: "500m"
 
 ---
 apiVersion: v1

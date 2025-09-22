@@ -30,18 +30,27 @@ spec:
               value: "kafka-service:9092"
             - name: SERVER_PORT
               value: "8084"
+            - name: SPRING_PROFILES_ACTIVE
+              value: "kubernetes"
           livenessProbe:
             httpGet:
               path: /actuator/health
               port: 8084
-            initialDelaySeconds: 60
-            periodSeconds: 10
+            initialDelaySeconds: 90
+            periodSeconds: 30
           readinessProbe:
             httpGet:
-              path: /actuator/health
+              path: /actuator/health/readiness
               port: 8084
-            initialDelaySeconds: 30
-            periodSeconds: 5
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1024Mi"
+              cpu: "500m"
 
 ---
 apiVersion: v1
@@ -56,31 +65,3 @@ spec:
     - port: 8084
       targetPort: 8084
   type: ClusterIP
-
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: core-crm-ingress
-  namespace: crm-system
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-spec:
-  ingressClassName: nginx
-  rules:
-    - http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: core-crm-service
-                port:
-                  number: 8084
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: core-crm-service
-                port:
-                  number: 8084
