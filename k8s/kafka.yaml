@@ -24,13 +24,17 @@ spec:
             - name: KAFKA_KRAFT_CLUSTER_ID
               value: "crm-kafka-cluster"
             - name: KAFKA_CFG_CONTROLLER_QUORUM_VOTERS
-              value: "1@kafka-service.crm-system.svc.cluster.local:9093"
+              value: "1@$(POD_IP):9093"
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
             - name: KAFKA_CFG_LISTENERS
-              value: "PLAINTEXT://:9092,CONTROLLER://:9093"
+              value: "PLAINTEXT://:9092,CONTROLLER://:9093,INTERNAL://:29092"
             - name: KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP
-              value: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+              value: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT"
             - name: KAFKA_CFG_ADVERTISED_LISTENERS
-              value: "PLAINTEXT://kafka-service.crm-system.svc.cluster.local:9092"
+              value: "PLAINTEXT://kafka-service.crm-system.svc.cluster.local:9092,INTERNAL://$(POD_IP):29092"
             - name: KAFKA_CFG_CONTROLLER_LISTENER_NAMES
               value: "CONTROLLER"
             - name: KAFKA_CFG_INTER_BROKER_LISTENER_NAME
@@ -39,19 +43,32 @@ spec:
               value: "false"
             - name: ALLOW_PLAINTEXT_LISTENER
               value: "yes"
+            - name: KAFKA_CFG_NUM_PARTITIONS
+              value: "3"
+            - name: KAFKA_CFG_DEFAULT_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR
+              value: "1"
           ports:
             - containerPort: 9092
             - containerPort: 9093
+            - containerPort: 29092
           livenessProbe:
             tcpSocket:
               port: 9092
-            initialDelaySeconds: 60
+            initialDelaySeconds: 90
             periodSeconds: 20
+            timeoutSeconds: 10
           readinessProbe:
             tcpSocket:
               port: 9092
-            initialDelaySeconds: 30
+            initialDelaySeconds: 60
             periodSeconds: 10
+            timeoutSeconds: 5
           resources:
             requests:
               memory: "512Mi"
@@ -76,6 +93,9 @@ spec:
     - name: controller
       port: 9093
       targetPort: 9093
+    - name: internal
+      port: 29092
+      targetPort: 29092
   type: ClusterIP
 
 ---
@@ -94,10 +114,14 @@ spec:
           args:
             - |
               echo "Waiting for Kafka to be ready...";
-              until kafka-topics.sh --bootstrap-server kafka-service:9092 --list; do
-                echo "Kafka is not ready yet...";
+              # Ждем пока Kafka полностью запустится
+              until nc -z kafka-service 9092; do
+                echo "Kafka port 9092 not ready...";
                 sleep 10;
               done;
+              # Дополнительная задержка для инициализации KRaft
+              echo "Waiting for KRaft controller initialization...";
+              sleep 45;
               echo "Creating topics...";
               kafka-topics.sh --bootstrap-server kafka-service:9092 --create --if-not-exists --topic raw-estate-data --partitions 3 --replication-factor 1;
               kafka-topics.sh --bootstrap-server kafka-service:9092 --create --if-not-exists --topic notifications --partitions 3 --replication-factor 1;
@@ -110,3 +134,75 @@ spec:
               value: "yes"
       restartPolicy: OnFailure
   backoffLimit: 5
+
+---
+# Kafka UI для мониторинга
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-ui
+  namespace: crm-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka-ui
+  template:
+    metadata:
+      labels:
+        app: kafka-ui
+    spec:
+      containers:
+        - name: kafka-ui
+          image: provectuslabs/kafka-ui:latest
+          env:
+            - name: KAFKA_CLUSTERS_0_NAME
+              value: "CRM Kafka Cluster"
+            - name: KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS
+              value: "kafka-service:9092"
+            - name: KAFKA_CLUSTERS_0_ZOOKEEPER
+              value: ""  # Не нужно для KRaft
+            - name: KAFKA_CLUSTERS_0_KRAFT
+              value: "true"
+            # Настройки для лучшего отображения
+            - name: KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL
+              value: "PLAINTEXT"
+            - name: KAFKA_CLUSTERS_0_METRICS_PORT
+              value: "9090"
+            - name: KAFKA_CLUSTERS_0_READONLY
+              value: "false"
+          ports:
+            - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /api/clusters
+              port: 8080
+            initialDelaySeconds: 40
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /api/clusters
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "200m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-ui-service
+  namespace: crm-system
+spec:
+  selector:
+    app: kafka-ui
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP
